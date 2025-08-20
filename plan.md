@@ -14,7 +14,7 @@
 
 ### Theory (2-3 hours)
 - **Primary Resource**: DeepLearning.AI's "AI Agentic Design Patterns with AutoGen" course
-- **Blog Series**: DeepLearning.AI's Agentic Design Patterns (Reflection, Tool Use, Planning, Multi-Agent)
+- **Blog Series**: DeepLearning.AI's Agentic Design Patterns (Reflection, Tool Use, Planning, Multi-Agent) ✅ 
 - **Essential Reading**: Lilian Weng's "LLM Powered Autonomous Agents" blog post
 - **Key Concepts**: ReAct pattern, Tool Use, Planning, Memory architecture
 
