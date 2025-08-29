@@ -1,171 +1,161 @@
 # src/main.py
+
 import os
 from langchain_openai import ChatOpenAI
-from langchain_community.embeddings import HuggingFaceBgeEmbeddings
+# CORRECTED: Use the standard HuggingFaceEmbeddings class for the all-MiniLM model
+from langchain_community.embeddings import HuggingFaceEmbeddings 
 from langchain_community.vectorstores import FAISS
 from langchain.document_loaders import JSONLoader
 from langchain.prompts import ChatPromptTemplate
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.chains import create_retrieval_chain
-from langchain.prompts import ChatPromptTemplate
 from langchain import hub
-from langchain.agents import create_react_agent, AgentExecutor
 from langchain_community.tools import DuckDuckGoSearchRun
+from langchain.memory import ConversationBufferMemory
+from langchain.chains import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.agents import create_openai_tools_agent, AgentExecutor, Tool
+# This is a good practice to avoid tokenizer warnings with HuggingFace
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
+# --- 1. LLM AND TOOLS SETUP ---
 
-# --- 1. SET-UP LLM --------
 def get_llm():
-    """
-    Initialize and return a ChatOpenAI object with specific configurations.
-    """
+    """Initializes and returns the local LLM."""
     return ChatOpenAI(
         openai_api_base="http://localhost:1234/v1",
         openai_api_key="not-needed",
-        model="gpt-oss-20b",
-        temperature=0,  
+        # Note: model name is often not required for LM Studio but can be useful
+        model="gpt-oss-20b", 
+        temperature=0,
     )
-def load_metrics_from_json(file_path):
-    """
-    Load metrics data from a JSON file.
-    """
-    loader = JSONLoader(
-        file_path=file_path, 
-        jq_schema='.data.metrics[]', 
-        text_content=False)
-    return loader.load()
 
-def create_vector_store(documents):
-    """
-    Create a vector store from a list of documents.
-    """
-    print("Creating embedding ...")
-    model_name = "all-MiniLM-L6-v2"
-    embeddings = HuggingFaceBgeEmbeddings(
-        model_name=model_name,
-    )
-    print("Creating FAISS vector store")
-    return FAISS.from_documents(documents, embedding=embeddings)
-def create_rag_chain(vector_store):
-    retriever = vector_store.as_retriever(search_type="similarity", search_kwargs={"k": 3})
-    prompt = ChatPromptTemplate.from_template(
-        """
-        Answer the following question based on the provided context:
-        <context>
-        {context}
-        </context>
-        Question: {input}
-        """
-    )
-    document_chain = create_stuff_documents_chain(
-        llm=get_llm(), 
-        prompt=prompt
-        )
-    retrieval_chain = create_retrieval_chain(
-        retriever,
-        document_chain
-        )
-    return retrieval_chain
 
-def get_retrieval_chain():
+def get_retrieval_chain(llm):
     """
-    Creates and returns a retrieval chain for querying metric definitions.
-    This version is updated to handle the complex, nested JSON structure.
+    Creates the complete RAG chain for retrieving metric definitions.
+    This function now handles loading, embedding, and chaining.
     """
     script_dir = os.path.dirname(__file__)
     json_file_path = os.path.join(script_dir, "..", "data", "metrics.json")
-    print("Loading metrics from JSON...")
-    jq_schema = """
-    .data.metrics[] | {
-        "doc_content": (
-            "Metric Name: \\(.name) | " +
-            "Description: \\(.description) | " +
-            "Calculation: \\(.function_operation) on key \\(.function_key) | " +
-            "Metric Group: \\(.metric_group)"
-        )
-        }
-        """
+    
+    # This jq schema extracts and formats the metric data with all relevant fields
+    jq_schema = (
+        '.data.metrics[] | "Metric Name: \\(.name) | '
+        'Description: \\(.description) | '
+        'Calculation: \\(.function_operation) on key \\(.function_key) | '
+        'Metric Group: \\(.metric_group // "Not specified") | '
+        'Status: \\(.status) | '
+        'Duration: \\(.duration_value) \\(.duration_type)"'
+    )
+    
     loader = JSONLoader(
         file_path=json_file_path,
         jq_schema=jq_schema,
-        text_content=False)  # Set text_content to True to load text content from JSON file_path=json_file_path, jq_schema=jq_schema, text_content=True
-    documents  = loader.load()
-     
-    embeddings = HuggingFaceBgeEmbeddings(
-        model_name="all-MiniLM-L6-v2",
+        text_content = False # text_content=False is needed for jq_schema to work on objects
     )
+    documents = loader.load()
+     
+    # FIX: Switched to the correct embedding class for this model
+    print("Creating embeddings and FAISS vector store...")
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     vector_store = FAISS.from_documents(documents, embedding=embeddings)
     retriever = vector_store.as_retriever()
+    
     prompt = ChatPromptTemplate.from_template(
         """
-        Answer the following question based on the provided context:
+        You are a helpful assistant that provides information about business metrics.
+        Answer the following question based ONLY on the provided context.
+        If the information is not in the context, say "I don't have information about that metric."
+        
         <context>
         {context}
         </context>
+        
         Question: {input}
+        
+        Answer:
         """
     )
-    document_chain = create_stuff_documents_chain(
-        llm=get_llm(), 
-        prompt=prompt
-        )
-    retrieval_chain = create_retrieval_chain(
-        retriever,
-        document_chain
-        )
+    
+    document_chain = create_stuff_documents_chain(llm, prompt)
+    retrieval_chain = create_retrieval_chain(retriever, document_chain)
+    
     return retrieval_chain
 
-def setup_tools():
-    """
-    Set up and return a list of tools for the agent.
-    """
-    from langchain.agents import Tool
-
-    retrieval_chain = get_retrieval_chain()
+def setup_tools(llm):
+    """Sets up the tools the agent can use."""
+    retrieval_chain = get_retrieval_chain(llm)
     
-    def retrieval_func(query):
-        result = retrieval_chain.invoke({"input": query})
-        return result["answer"]
+    def search_metrics(query):
+        """Wrapper function to handle the retrieval chain properly."""
+        try:
+            if isinstance(query, dict):
+                query = query.get('input', str(query))
+            result = retrieval_chain.invoke({"input": query})
+            return result.get('answer', 'No information found.')
+        except Exception as e:
+            return f"Error searching metrics: {str(e)}"
     
-    retrival_tools = Tool(
-            name="metric_definitions_search",
-            func=retrieval_func,
-            description="Useful for when you need to answer questions about metric definitions. Input should be a fully formed question.",
-        )
-    web_search_tool = DuckDuckGoSearchRun()
-    tools = [retrival_tools, web_search_tool]
-    return tools
-def create_agent(tools):
-    """
-    Creates the ReAct agent.
-    """
-    prompt = hub.pull("hwchase17/react")
-    agent = create_react_agent(
-        llm=get_llm(),
-        tools=tools,
-        prompt=prompt
+    retrieval_tool = Tool(
+        name="metric_definitions_search",
+        func=search_metrics,
+        description="Search for internal business metric definitions. Use this to find information about specific metrics, their names, descriptions, calculations, or metric groups."
     )
-    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+    web_search_tool = DuckDuckGoSearchRun()
+    return [retrieval_tool, web_search_tool]
+
+
+# --- 2. AGENT CREATION ---
+
+def create_agent(llm, tools):
+    """Creates an agent that uses structured tool calling."""
+    # 1. Pull a prompt designed for OpenAI Tools agents
+    prompt = hub.pull("hwchase17/openai-tools-agent")
+    
+    # 2. Use the modern 'create_openai_tools_agent'
+    agent = create_openai_tools_agent(llm, tools, prompt)
+    
+    memory = ConversationBufferMemory(
+        memory_key="chat_history", 
+        return_messages=True
+        )
+    
+    agent_executor = AgentExecutor(
+        agent=agent,
+        tools=tools,
+        memory=memory,
+        verbose=True,
+        handle_parsing_errors=True,
+        max_iterations=3 
+    )
     return agent_executor
 
+# --- 3. MAIN EXECUTION ---
+
 def main():
-    """
-    Main function to run the agent.
-    """
-    tools = setup_tools()
-    agent_executor = create_agent(tools)
+    """Main function to initialize and run the agent."""
+    llm = get_llm()
+    tools = setup_tools(llm)
+    agent_executor = create_agent(llm, tools)
+    
     print("Agent is ready! Ask me about metric definitions or anything else.")
     print("-" * 30)
-    # Example query
-    query = "Create a metric for std dev on amount usd for 1 weeks on payment score?"
-    print(f"Query: {query}")
     
-    response = agent_executor.invoke({"input": query})
-    print(f"Response: {response['output']}")
-    # --- Test Case 2: A question that requires web search ---
-    question2 = "Who is the current CEO of Google?"
-    print(f"QUESTION: {question2}")
-    response2 = agent_executor.invoke({"input": question2})
-    print(f"ANSWER: {response2['output']}")
+    # Test conversation
+    question1 = "Tell me about the metric with the name cntd_cash_users_device_30d"
+    print(f"YOU: {question1}")
+    try:
+        response1 = agent_executor.invoke({"input": question1})
+        print(f"AGENT: {response1['output']}\n")
+    except Exception as e:
+        print(f"Error: {e}\n")
+    
+    question2 = "what is its metric group?"
+    print(f"YOU: {question2}")
+    try:
+        response2 = agent_executor.invoke({"input": question2})
+        print(f"AGENT: {response2['output']}")
+    except Exception as e:
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
     main()
