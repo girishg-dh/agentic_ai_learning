@@ -2,7 +2,6 @@
 
 import os
 from langchain_openai import ChatOpenAI
-# CORRECTED: Use the standard HuggingFaceEmbeddings class for the all-MiniLM model
 from langchain_community.embeddings import HuggingFaceEmbeddings 
 from langchain_community.vectorstores import Qdrant
 from langchain_community.document_loaders import JSONLoader
@@ -16,7 +15,7 @@ from langchain.agents import create_openai_tools_agent, AgentExecutor, Tool
 import qdrant_client
 
 
-# This is a good practice to avoid tokenizer warnings with HuggingFace
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 # --- 1. LLM AND TOOLS SETUP ---
