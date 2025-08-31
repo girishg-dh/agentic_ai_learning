@@ -12,11 +12,11 @@ def check_and_download_file(file_path, url) -> bool:
     """
     Checks if a file exists in the given file_path. If the file does not exist,
     it downloads the file from the given url and saves it to the file_path.
-    
+      
     Args:
         file_path (str): The path to the file to be checked/downloaded.
         url (str): The URL of the file to be downloaded.
-    
+   
     Returns:
         bool: True if the file exists or has been downloaded successfully.
               False otherwise.
@@ -25,11 +25,11 @@ def check_and_download_file(file_path, url) -> bool:
     if not os.path.exists(file_path):
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        
+       
         print(f"File not found. Downloading from {url}")
         response = requests.get(url)
         response.raise_for_status()  # Raise an exception for bad status codes
-        
+       
         with open(file_path, 'wb') as f:
             f.write(response.content)
         print(f"File downloaded successfully to {file_path}")

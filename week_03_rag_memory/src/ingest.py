@@ -1,8 +1,8 @@
 from helper import check_and_download_file, check_qdrant_status
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import Qdrant
-from langchain_community.document_loaders import PDFLoader
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_qdrant import Qdrant
 
 # ---- pre-set-up -----
 url = "https://arxiv.org/pdf/1706.03762"
@@ -19,7 +19,7 @@ else:
     exit()
 
 # ---- 1. Load the data from pdf -----
-loader = PDFLoader(file_path)
+loader = PyPDFLoader(file_path)
 documents = loader.load()
 print(f"Loaded {len(documents)} page(s) from the PDF.)")
 
