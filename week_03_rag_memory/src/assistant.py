@@ -1,4 +1,6 @@
 import os
+import json
+from operator import itemgetter
 
 import langchain
 import qdrant_client
@@ -13,7 +15,8 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
 from langchain_qdrant import QdrantVectorStore
 from langchain_core.messages import HumanMessage, AIMessage
-from operator import itemgetter
+from langchain_core.messages import messages_from_dict, messages_to_dict
+
 chat_history = []
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -146,6 +149,16 @@ full_chain = (
 print("Your Personal Research Assistant is ready (Upgraded with Modern Chains).")
 
 try:
+    with open("chat_history.json", "r") as f:
+        retrieved_history = json.load(f)
+        chat_history = messages_from_dict(retrieved_history)
+    print("--- Loaded previous chat history. ---")
+except FileNotFoundError:
+    print("--- No conversation history found, starting a new session. ---")
+    pass 
+
+
+try:
     while True:
         user_input = input("You: ")
         if user_input.lower() == 'exit':
@@ -162,6 +175,9 @@ try:
         chat_history.append(AIMessage(content=response))
 
         print(f"Assistant: {response}")
+        serializable_history = messages_to_dict(chat_history)
+        with open("chat_history.json", "w") as f:
+            json.dump(serializable_history, f, indent=4)
 
 except KeyboardInterrupt:
     print("\nConversation ended.")
