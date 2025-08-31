@@ -111,23 +111,18 @@ if __name__ == '__main__':
     while True:
         # Get user input from the command line
         user_input = input("\n> ")
-        
         # Check for exit commands
         if user_input.lower() in ["exit", "quit"]:
             print("Exiting assistant. Goodbye! 👋")
             break
-            
         # Invoke the agent with the user's input
         try:
             # Turn off verbose for a cleaner chat experience
             agent_executor.verbose = False 
-            
             response = agent_executor.invoke({
                 "input": user_input
             })
-            
             # Print the structured report
             print_city_report(response['output'])
-
         except Exception as e:
             print(f"\nAn error occurred: {e}")
