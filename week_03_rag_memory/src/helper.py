@@ -8,7 +8,7 @@ import requests
 url ="https://arxiv.org/pdf/1706.03762"
 
 
-def check_and_download_file(file_path, url) -> bool:
+def check_and_download_file(file_path="../data/Attention_is_all_you_need.pdf", url="https://arxiv.org/pdf/1706.03762") -> bool:
     """
     Checks if a file exists in the given file_path. If the file does not exist,
     it downloads the file from the given url and saves it to the file_path.
