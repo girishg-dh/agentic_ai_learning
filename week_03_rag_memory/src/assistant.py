@@ -1,13 +1,19 @@
 import os
 
 import qdrant_client
-from langchain.chains import RetrievalQA
+from langchain.chains import LLMChain, RetrievalQA
+from langchain.memory import ConversationBufferMemory
+from langchain.prompts import (ChatPromptTemplate, MessagesPlaceholder,
+                               PromptTemplate)
 from langchain.retrievers import MultiQueryRetriever
+from langchain.schema.output_parser import StrOutputParser
+from langchain_core.runnables import RunnableBranch, RunnablePassthrough
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
 from langchain_qdrant import QdrantVectorStore
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+langchain.debug = False
 
 # --- 1. Setup the LLM ---
 llm = ChatOpenAI(
