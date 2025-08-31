@@ -2,7 +2,7 @@ import os
 import requests
 from dotenv import load_dotenv
 from langchain.tools import tool
-from typing import List
+from typing import List, Dict
 
 
 # Load environment variables from .env file
@@ -100,7 +100,7 @@ def get_current_weather(location: str) -> str:
         return f"An unexpected error occurred: {e}"
     
 @tool
-def get_top_headlines(country: str) -> List[str]:
+def get_top_headlines(country: str) -> List[Dict]:
     """
     Get the top 5 news headlines for a specific country.
 
@@ -108,11 +108,11 @@ def get_top_headlines(country: str) -> List[str]:
         country (str): The two-letter country code (e.g., "us", "gb", "de").
 
     Returns:
-        List[str]: A list of headline strings or an error message.
+        List[Dict]: A list of dictionaries, each containing a headline's 'title' and 'url'.
     """
     
     if not NEWS_API_KEY:
-        return ["Error: News API key is not set."]
+        return [{"error": "News API key is not set."}]
 
     url = f"https://newsapi.org/v2/top-headlines"
     params = {
@@ -127,42 +127,17 @@ def get_top_headlines(country: str) -> List[str]:
         data = response.json()
         articles = data.get("articles", [])
         if not articles:
-            return [f"No news articles found for country code '{country}'."]
-        return [article["title"] for article in articles if article.get("title")]
+            return [{"error": f"No news articles found for country code '{country}'."}]
+
+        return [{"title": article["title"], "url": article["url"]} for article in articles if article.get("title")]
     except requests.exceptions.HTTPError as http_err:
         error_details = response.json().get("message", str(http_err))
-        return [f"Error: HTTP error occurred: {http_err} - {error_details}"]
+        return [{"error": f"HTTP error occurred: {http_err} - {error_details}"}]
     except Exception as e:
         return [f"An unexpected error occurred: {e}"]
 
 # ---- Test the function ----
 if __name__ == "__main__":
-    # This block runs only when you execute this script directly
-    print("Testing the weather tool...")
-    test_city = "Berlin"
-    weather_result = get_current_weather(test_city)
-    print(weather_result)
-
-    print("\nTesting with an invalid city...")
-    invalid_city_result = get_current_weather("InvalidCityName123")
-    print(invalid_city_result)
-
-    # Testing the news tool
-    print("\nTesting the news tool...")
-    test_country = "us"
-    news_result = get_top_headlines(test_country)
-    print(news_result)
-
-    print("\nTesting with an invalid country code...")
-    invalid_country_result = get_top_headlines("invalid_country")
-    print(invalid_country_result)
-
-    # Testing the stock tool
-    print("\nTesting the stock tool...")
-    test_ticker = "AAPL"
-    stock_result = get_stock_price(test_ticker)
-    print(stock_result)
-
-    print("\nTesting with an invalid ticker...")
-    invalid_ticker_result = get_stock_price("INVALID")
-    print(invalid_ticker_result)
+    print(get_current_weather("Berlin"))
+    print(get_top_headlines("us"))
+    print(get_stock_price("AAPL"))

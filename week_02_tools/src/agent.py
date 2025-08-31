@@ -1,55 +1,56 @@
+# agent.py
+
 from tools import get_current_weather, get_top_headlines, get_stock_price
+from schemas import CityReport 
 
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.tools import tool
 from langchain.agents import create_openai_tools_agent, AgentExecutor
 
-# 1. Define the LLMs
-#llm = ChatOpenAI(temperature=0, model="gpt-4o")
-llm = ChatOpenAI(temperature=0, model="openai/gpt-oss-20b", base_url="http://localhost:1234/v1", max_retries=3)
+# 1. Define the LLM
+#llm = ChatOpenAI(model="gpt-4o", temperature=0)
+llm = ChatOpenAI(
+    model="llama3.1", 
+    temperature=0,
+    base_url="http://localhost:11434/v1",  
+    api_key="ollama" 
+)
 
-# 2. Define prompt
+# 2. Instruct the LLM to use the CityReport schema
+structured_llm = llm.with_structured_output(CityReport)
+
+# 3. Define the prompt (remains the same)
 prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "You are a helpful assistant. Answer all questions to the best of your ability."),
-        MessagesPlaceholder(variable_name="chat_history", optional=True),
+        ("system", "You are a helpful assistant."),
         ("user", "{input}"),
         MessagesPlaceholder(variable_name="agent_scratchpad"),
     ]
 )
 
-# 3. Create a list of tools
+# 4. Create the tools list (remains the same)
 tools = [get_current_weather, get_top_headlines, get_stock_price]
 
-# 4. Create the agent
-agent = create_openai_tools_agent(llm, tools, prompt)
+# 5. Create the agent using the structured LLM
+agent = create_openai_tools_agent(structured_llm, tools, prompt)
 
-# 5. Create the agent executor
+# 6. Create the Agent Executor
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-# 6. Invoke the agent executor with a query
+# 7. Invoke the agent with a multi-tool query
 if __name__ == '__main__':
-    print("Agent is ready! Ask a question about the weather.")
-
-    print("--- Testing Stock Price Tool ---")
-    response = agent_executor.invoke({"input": "What is the stock price for Apple?"})
-    print("\nFinal Answer:")
-    print(response["output"])
+    print("--- Testing Multi-Tool Structured Output ---")
+    response = agent_executor.invoke({
+        "input": "Give me a full report on Berlin, including the weather and top news."
+    })
     
-    print("\n" + "="*50 + "\n")
+    city_report = response['output']
 
-    response = agent_executor.invoke({"input": "What's the weather like in Berlin?"})
-    print("\nFinal Answer:")
-    print(response["output"])
-    print("--- Testing Weather Tool ---")
-    response = agent_executor.invoke({"input": "What's the weather like in Tokyo?"})
-    print("\nFinal Answer:")
-    print(response["output"])
-
-    print("\n" + "="*50 + "\n")
-
-    print("--- Testing News Tool ---")
-    response = agent_executor.invoke({"input": "What are the top headlines in India?"})
-    print("\nFinal Answer:")
-    print(response["output"])
+    print("\n--- Final City Report (Structured) ---")
+    print(f"Weather in {city_report['weather']['location']}:")
+    print(f"  - Temp: {city_report['weather']['temperature']}°C")
+    print(f"  - Desc: {city_report['weather']['description']}")
+    
+    print(f"\nTop News Headlines:")
+    for article in city_report['news']:
+        print(f"  - {article['title']}")
