@@ -1,0 +1,13 @@
+langchain
+langchain-openai
+langchain-huggingface
+langchain-qdrant
+langchain-community
+qdrant-client
+requests
+fastapi
+uvicorn
+jinja2
+python-multipart
+pypdf
+sentence-transformers

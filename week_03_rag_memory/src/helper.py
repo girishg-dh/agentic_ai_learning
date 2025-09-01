@@ -43,17 +43,11 @@ def check_and_download_file(file_path="../data/Attention_is_all_you_need.pdf", u
 # check is qdrant db is running on localhost:6333
 def check_qdrant_status():
     """
-    Check if Qdrant is running on localhost:6333.
-
-    This function checks if a connection can be established to localhost:6333.
-    If the connection is successful, it queries the collections endpoint and
-    checks if the status code is 200. If the status code is 200, it prints
-    "Qdrant is running." and returns True. If the status code is not 200,
-    it prints "Qdrant is not running." and returns False. If there is a
-    ConnectionError, it prints "Qdrant is not running." and returns False.
+    Check if Qdrant is running.
     """
+    qdrant_url = os.getenv("QDRANT_URL", "http://localhost:6333")
     try:
-        response = requests.get("http://localhost:6333/collections")
+        response = requests.get(f"{qdrant_url}/collections")
         if response.status_code == 200:
             print("Qdrant is running.")
             return True

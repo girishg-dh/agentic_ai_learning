@@ -1,98 +1,83 @@
-# Agentic AI Learning
+# Week 3: RAG & Memory - Research Assistant
 
-This repository contains hands-on exercises, code samples, and projects focused on learning and implementing agentic AI concepts. The code is organized by weeks, with each week focusing on specific AI topics such as Retrieval-Augmented Generation (RAG), memory architectures, and more.
+A containerized RAG (Retrieval-Augmented Generation) system with memory and web interface for document-based Q&A.
 
-## Table of Contents
+## Features
 
-- [Project Structure](#project-structure)
-- [Week 3: RAG & Memory](#week-3-rag--memory)
-- [Getting Started](#getting-started)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Contributing](#contributing)
-- [License](#license)
+- RAG pipeline with Qdrant vector database
+- Memory-augmented conversations
+- Web-based chat interface
+- Docker containerization with persistence
+- Multi-query retrieval for better results
 
----
+## Quick Start
+
+### Prerequisites
+- Docker and Docker Compose
+- LM Studio running on port 1234 (or update the base_url in assistant_core.py)
+
+### Run with Docker
+
+1. **Start LM Studio** on port 1234 with your preferred model
+
+2. **Build and run containers:**
+   ```bash
+   cd week_03_rag_memory
+   docker-compose up --build
+   ```
+
+3. **Access the web interface:**
+   - Chat UI: http://localhost:8000
+   - Qdrant dashboard: http://localhost:6333/dashboard
+
+### Run Locally (Alternative)
+
+1. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Start Qdrant:**
+   ```bash
+   docker run -p 6333:6333 qdrant/qdrant:latest
+   ```
+
+3. **Run ingestion and assistant:**
+   ```bash
+   cd src
+   python ingest.py
+   python assistant.py  # CLI version
+   # OR
+   python web_app.py    # Web version
+   ```
 
 ## Project Structure
 
 ```
-agentic_ai_learning/
-├── week_01_intro/
-├── week_02_foundations/
-├── week_03_rag_memory/
-│   └── src/
-│       ├── <source files>
+week_03_rag_memory/
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+├── data/                    # PDF documents (mounted)
+├── chat_history/           # Conversation persistence (mounted)
+└── src/
+    ├── assistant.py        # CLI chat interface
+    ├── assistant_core.py   # Core assistant logic
+    ├── web_app.py         # FastAPI web interface
+    ├── ingest.py          # Document ingestion
+    ├── helper.py          # Utility functions
+    └── templates/
+        └── chat.html      # Web UI template
 ```
 
-Each week contains a directory with relevant code, resources, and documentation.
+## How It Works
 
----
-
-## Week 3: RAG & Memory
-
-**Directory:** `week_03_rag_memory/src`
-
-This module focuses on Retrieval-Augmented Generation (RAG) and memory-augmented AI systems. Sample tasks and explorations include:
-
-- Implementing RAG pipelines
-- Experimenting with vector databases and knowledge retrieval
-- Integrating memory into agentic workflows
-
-> Explore the `src` directory for Python scripts and utility modules related to RAG and memory.
-
----
-
-## Getting Started
-
-To get started, clone this repository:
-
-```bash
-git clone https://github.com/girishg-dh/agentic_ai_learning.git
-cd agentic_ai_learning
-```
-
----
-
-## Installation
-
-> Requirements and environment setup may vary by week/module.
-
-1. Install Python 3.8+ and `pip`.
-2. (Optional) Create a virtual environment:
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # On Windows: venv\Scripts\activate
-    ```
-3. Install dependencies (if a `requirements.txt` is provided in a week):
-    ```bash
-    pip install -r week_03_rag_memory/requirements.txt
-    ```
-
----
-
-## Usage
-
-Navigate to the desired week and run code examples:
-
-```bash
-cd week_03_rag_memory/src
-python <script_name>.py
-```
-
-*Replace `<script_name>.py` with the script you want to run.*
-
----
-
-## Contributing
-
-Contributions are welcome! Please open issues or pull requests for new features, bug fixes, or documentation improvements.
-
----
-
-## License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+1. **Ingestion:** Downloads and processes "Attention Is All You Need" paper
+2. **Vectorization:** Creates embeddings using HuggingFace transformers
+3. **Storage:** Stores vectors in Qdrant database
+4. **Retrieval:** Uses multi-query retrieval for relevant context
+5. **Generation:** LM Studio generates responses based on retrieved context
+6. **Memory:** Maintains conversation history with routing logic
 
 ---
 
