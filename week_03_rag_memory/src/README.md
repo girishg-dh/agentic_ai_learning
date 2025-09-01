@@ -61,13 +61,15 @@ week_03_rag_memory/
 ├── data/                    # PDF documents (mounted)
 ├── chat_history/           # Conversation persistence (mounted)
 └── src/
-    ├── assistant.py        # CLI chat interface
-    ├── assistant_core.py   # Core assistant logic
-    ├── web_app.py         # FastAPI web interface
-    ├── ingest.py          # Document ingestion
-    ├── helper.py          # Utility functions
+    ├── README.md          # This documentation
+    ├── assistant.py       # CLI chat interface (modern chains)
+    ├── assistantV1.py     # Simple RAG implementation
+    ├── assistant_core.py  # Core assistant logic
+    ├── web_app.py        # FastAPI web interface
+    ├── ingest.py         # Document ingestion
+    ├── helper.py         # Utility functions
     └── templates/
-        └── chat.html      # Web UI template
+        └── chat.html     # Web UI template
 ```
 
 ## How It Works
