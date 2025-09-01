@@ -30,9 +30,11 @@
     </form>
     
     <script>
-        document.getElementById('chatForm').addEventListener('submit', function() {
+        document.getElementById('chatForm').addEventListener('submit', function(e) {
             const input = document.getElementById('messageInput');
             const button = document.getElementById('sendButton');
+            
+            if (!input.value.trim()) return;
             
             // Add user message to chat immediately
             const chatContainer = document.querySelector('.chat-container');
