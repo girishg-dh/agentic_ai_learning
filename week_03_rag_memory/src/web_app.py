@@ -1,24 +1,37 @@
 import json
 import os
-from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-from langchain_core.messages import HumanMessage, AIMessage, messages_from_dict, messages_to_dict
 
 # Import the assistant logic
-from assistant_core import get_assistant_response, chat_history
+from assistant_core import chat_history, get_assistant_response
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
+from langchain_core.messages import (
+    AIMessage,
+    HumanMessage,
+)
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
+# Pydantic model for the incoming message
+class ChatMessage(BaseModel):
+    message: str
+
 @app.get("/", response_class=HTMLResponse)
 async def chat_page(request: Request):
+    # The chat_history is now managed per session, so we pass the current state
     return templates.TemplateResponse("chat.html", {"request": request, "messages": chat_history})
 
 @app.post("/chat")
-async def chat(request: Request, message: str = Form(...)):
-    response = get_assistant_response(message)
-    return templates.TemplateResponse("chat.html", {"request": request, "messages": chat_history})
+async def chat(chat_message: ChatMessage):
+    if chat_message.message:
+        response = get_assistant_response(chat_message.message)
+        # The last message in chat_history is the assistant's response
+        assistant_message = chat_history[-1].content
+        return JSONResponse(content={"response": assistant_message})
+    return JSONResponse(content={"response": "No message provided"}, status_code=400)
 
 if __name__ == "__main__":
     import uvicorn

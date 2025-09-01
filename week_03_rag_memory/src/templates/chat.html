@@ -24,38 +24,75 @@
             {% endif %}
         {% endfor %}
     </div>
-    <form method="post" action="/chat" class="input-form" id="chatForm">
+    <form method="post" action="/chat" class="input-form" id="chatForm" enctype="application/x-www-form-urlencoded">
         <input type="text" name="message" id="messageInput" placeholder="Ask your question..." required>
         <button type="submit" id="sendButton">Send</button>
     </form>
     
     <script>
-        document.getElementById('chatForm').addEventListener('submit', function(e) {
+        document.getElementById('chatForm').addEventListener('submit', async function(e) {
+            e.preventDefault(); // Prevent the default form submission
+
             const input = document.getElementById('messageInput');
             const button = document.getElementById('sendButton');
-            
-            if (!input.value.trim()) return;
-            
-            // Add user message to chat immediately
             const chatContainer = document.querySelector('.chat-container');
+            
+            const userMessageContent = input.value.trim();
+            if (!userMessageContent) return;
+
+            // Add user message to chat
             const userMessage = document.createElement('div');
             userMessage.className = 'message user';
-            userMessage.innerHTML = '<strong>You:</strong> ' + input.value;
+            userMessage.innerHTML = `<strong>You:</strong> ${userMessageContent}`;
             chatContainer.appendChild(userMessage);
-            
+
             // Add loading message
             const loadingMessage = document.createElement('div');
             loadingMessage.className = 'message assistant';
             loadingMessage.innerHTML = '<strong>Assistant:</strong> Thinking...';
             chatContainer.appendChild(loadingMessage);
-            
+
             // Scroll to bottom
             chatContainer.scrollTop = chatContainer.scrollHeight;
-            
-            // Disable form
+
+            // Disable form and clear input
+            const originalButtonText = button.textContent;
             input.disabled = true;
             button.disabled = true;
             button.textContent = 'Sending...';
+            input.value = '';
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: userMessageContent }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Replace loading message with assistant's response
+                loadingMessage.innerHTML = `<strong>Assistant:</strong> ${data.response}`;
+
+            } catch (error) {
+                console.error('Error:', error);
+                loadingMessage.innerHTML = '<strong>Assistant:</strong> Sorry, something went wrong.';
+            } finally {
+                // Re-enable form
+                input.disabled = false;
+                button.disabled = false;
+                button.textContent = originalButtonText;
+                input.focus();
+                
+                // Scroll to bottom again
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
         });
     </script>
 </body>
