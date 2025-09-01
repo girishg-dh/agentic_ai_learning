@@ -117,3 +117,20 @@ def get_assistant_response(user_input):
         json.dump(serializable_history, f, indent=4)
     
     return response
+
+def clear_chat_history():
+    global chat_history
+    chat_history = []
+    history_file = "/app/chat_history/chat_history.json"
+    if os.path.exists(history_file):
+        os.remove(history_file)
+
+def prune_chat_history(keep_last_n=4):
+    global chat_history
+    if len(chat_history) > keep_last_n:
+        chat_history = chat_history[-keep_last_n:]
+        # Save the pruned history
+        os.makedirs("/app/chat_history", exist_ok=True)
+        serializable_history = messages_to_dict(chat_history)
+        with open("/app/chat_history/chat_history.json", "w") as f:
+            json.dump(serializable_history, f, indent=4)

@@ -2,7 +2,12 @@ import json
 import os
 
 # Import the assistant logic
-from assistant_core import chat_history, get_assistant_response
+from assistant_core import (
+    chat_history, 
+    get_assistant_response, 
+    clear_chat_history, 
+    prune_chat_history
+)
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -32,6 +37,16 @@ async def chat(chat_message: ChatMessage):
         assistant_message = chat_history[-1].content
         return JSONResponse(content={"response": assistant_message})
     return JSONResponse(content={"response": "No message provided"}, status_code=400)
+
+@app.post("/chat/clear")
+async def clear_history():
+    clear_chat_history()
+    return JSONResponse(content={"message": "Chat history cleared"})
+
+@app.post("/chat/prune")
+async def prune_history():
+    prune_chat_history() # a default of 4 messages will be kept
+    return JSONResponse(content={"message": "Chat history pruned"})
 
 if __name__ == "__main__":
     import uvicorn
