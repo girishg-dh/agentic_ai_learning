@@ -148,20 +148,16 @@ workflow.add_conditional_edges(
 app = workflow.compile()
 
 # --- 4. Run the Graph ---
-print("--- Starting Trip Planner ---")
-user_input = (
-    "What are latest LLM models released by Google for tool calling this year?"
-)
-initial_state = {
-    "messages": [HumanMessage(content=user_input)],
-    "replan_count": 0
-    }
-# --- 4. Run the Graph ---
-# ... (initial_state definition) ...
-final_state = None
-for event in app.stream(initial_state, {"recursion_limit": 50}):
-    final_state = event
+# --- 5. Main Execution Block ---
+if __name__ == "__main__":
+    print("--- Starting Trip Planner Agent ---")
+    user_input = "Plan a 3-day trip to Berlin for two, focused on historical sites."
+    initial_state = {"messages": [HumanMessage(content=user_input)], "replan_count": 0}
 
-print("\n--- FINAL AI RESPONSE ---")
-print(final_state['agent']['messages'][-1].content)
-print("\n--- Trip Planner Complete ---")
+    final_state = None
+    # Use invoke to run the graph and get the final state
+    final_state = app.invoke(initial_state, {"recursion_limit": 50})
+
+    print("\n--- FINAL AI RESPONSE ---")
+    print(final_state['messages'][-1].content)
+    print("\n--- Trip Planner Complete ---")

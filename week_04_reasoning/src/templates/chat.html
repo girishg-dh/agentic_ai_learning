@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Trip Planner</title>
+    <style>
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background-color: #0a0a1a;
+            color: #00ff00;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-image: linear-gradient(45deg, rgba(0, 255, 255, 0.05) 25%, transparent 25%),
+                              linear-gradient(-45deg, rgba(0, 255, 255, 0.05) 25%, transparent 25%),
+                              linear-gradient(45deg, transparent 75%, rgba(0, 255, 255, 0.05) 75%),
+                              linear-gradient(-45deg, transparent 75%, rgba(0, 255, 255, 0.05) 75%);
+            background-size: 20px 20px;
+        }
+        h1 {
+            text-align: center;
+            text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;
+        }
+        .chat-container {
+            border: 1px solid #00ff00;
+            box-shadow: 0 0 15px #00ff00 inset;
+            height: 500px;
+            overflow-y: auto;
+            padding: 10px;
+            margin-bottom: 20px;
+            background-color: rgba(10, 10, 30, 0.8);
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid;
+        }
+        .user {
+            border-color: #00ffff;
+            background-color: #0a1a2a;
+            text-align: right;
+        }
+        .assistant {
+            border-color: #ff00ff;
+            background-color: #1a0a1a;
+        }
+        .input-form {
+            display: flex;
+            gap: 10px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            background-color: #1a1a3a;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            font-family: 'Orbitron', sans-serif;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #1a1a3a;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            cursor: pointer;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+        button:hover {
+            background-color: #00ff00;
+            color: #0a0a1a;
+            box-shadow: 0 0 10px #00ff00;
+        }
+    </style>
+</head>
+<body>
+    <h1>Trip Planner</h1>
+    <div class="chat-container" id="chatContainer">
+    </div>
+    <form class="input-form" id="chatForm">
+        <input type="text" id="messageInput" placeholder="Enter your trip request..." required>
+        <button type="submit" id="sendButton">Plan Trip</button>
+    </form>
+    
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+
+        document.getElementById('chatForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const input = document.getElementById('messageInput');
+            const button = document.getElementById('sendButton');
+            const userMessageContent = input.value.trim();
+            if (!userMessageContent) return;
+
+            appendMessage(userMessageContent, 'user');
+            const loadingMessage = appendMessage('Planning your trip...', 'assistant');
+
+            const originalButtonText = button.textContent;
+            setFormDisabled(true);
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: userMessageContent }),
+                });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                loadingMessage.innerHTML = `<strong>Planner:</strong> ${data.response}`;
+            } catch (error) {
+                console.error('Error:', error);
+                loadingMessage.innerHTML = '<strong>Planner:</strong> Error communicating with the planner.';
+            } finally {
+                setFormDisabled(false, originalButtonText);
+                input.value = '';
+                input.focus();
+            }
+        });
+
+        function appendMessage(content, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.innerHTML = `<strong>${type === 'user' ? 'You' : 'Planner'}:</strong> ${content}`;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return messageDiv;
+        }
+
+        function setFormDisabled(disabled, buttonText = 'Plan Trip') {
+            document.getElementById('messageInput').disabled = disabled;
+            const sendButton = document.getElementById('sendButton');
+            sendButton.disabled = disabled;
+            sendButton.textContent = disabled ? 'Planning...' : buttonText;
+        }
+    </script>
+</body>
+</html>

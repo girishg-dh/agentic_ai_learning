@@ -5,3 +5,8 @@ python-dotenv
 langchain-community 
 tavily-python
 langchain-tavily
+langchain_google_genai
+fastapi
+uvicorn
+jinja2
+python-multipart
