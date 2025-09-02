@@ -1,14 +1,16 @@
 # phase2_planner.py
 import operator
-from os import getenv
+
+#from os import getenv
 from typing import Annotated, Optional, TypedDict
 
 from dotenv import load_dotenv
-from langchain_community.tools import TavilySearchResults
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
+from langchain_tavily import TavilySearch
+
+#from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 
@@ -20,20 +22,18 @@ load_dotenv()
 # state to gather all info throughout the processing 
 class TripState(TypedDict):
     """The state of the trip planning agent"""
-    user_request: Optional[str] = None
-    flights: Optional[str] = None
-    hotels: Optional[str] = None
-    itinerary: Optional[str] = None
     messages: Annotated[list[BaseMessage], operator.add]
+    replan_count: int
  
 
 # --- 2. Define Tools and Nodes ---
 
 # Initialize Search Tool
-search_tool = TavilySearchResults(max_results=2)
+search_tool = TavilySearch(max_results=3)
+tool_node = ToolNode([search_tool])
 
 # Initialize LLM
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", temperature=0)
+llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0)
 
 # llm = ChatOpenAI(
 #     base_url="http://localhost:1234/v1",
@@ -43,135 +43,125 @@ llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", temperature=0)
 #     )
 
 
-
-
 def create_specialist_node(system_prompt: str):
-    """Create a node that acts as a specialist with a specific role."""
+    """Helper to create a specialist node."""
     prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", system_prompt),
-            ("placeholder", "{messages}"),
-        ]
+        [("system", system_prompt), ("placeholder", "{messages}")]
     )
     llm_with_tools = llm.bind_tools([search_tool])
     chain = prompt | llm_with_tools
 
     def node(state: TripState):
-        try:
-            print(f"--- Calling Specialist: {system_prompt[:40]}... ---")
-            return {"messages": [chain.invoke({"messages": state["messages"]})]}
-
-        except Exception as e:
-            # This will catch and print any error during the LLM call
-            print(f"!!! ERROR IN NODE: {e} !!!")
-            # Return a message indicating failure
-            error_message = HumanMessage(content=f"Error executing node: {e}")
-            return {"messages": [error_message]}
+        return {"messages": [chain.invoke({"messages": state["messages"]})]}
 
     return node
 
 
-# Create the specialist nodes using our helper function
-flight_researcher = create_specialist_node(
-    "You are a world-class flight research agent."
-    " Find the best, most affordable flights "
-    "for the user's request. Include airline, price, and "
-    "flight times. Use the search tool."
+agent_node = create_specialist_node(
+    "You are a helpful travel planning assistant. Your goal is to find the best flights, hotels, "
+    "and create an itinerary based on the user's request. Use the tools provided to find the "
+    "necessary information. Once you have a final answer, respond directly to the user without "
+    "calling any more tools."
 )
 
-hotel_researcher = create_specialist_node(
-    "You are a world-class hotel research agent. "
-    "Find the best hotels based on the user's "
-    "request and flight details. Consider budget, "
-    "location, and amenities. Use the search tool."
+
+replanner_node = create_specialist_node(
+    (
+        "You are an expert planner. The user has indicated that the previous attempt "
+        "was unsuccessful. Analyze the conversation history and the last tool outputs. "
+        "Formulate a new, single-sentence plan of action to achieve the user's goal. "
+        "Your response should be a concise plan, not the answer itself."
+    )
 )
 
-itinerary_creator = create_specialist_node(
-    "You are a world-class travel planner. "
-    "Create a detailed day-by-day itinerary "
-    "based on the flight and hotel information provided."
-    " Include suggested activities, "
-    "restaurants, and travel tips."
-)
 
-# Helper to create specialist agent node
-tool_node = ToolNode([search_tool])
+def human_in_loop_node(state: TripState):
+    """Pauses the graph to ask for human feedback."""
+    last_message = state['messages'][-1]
+    if isinstance(last_message, ToolMessage):
+        print("\n--- Tool Output ---")
+        print(last_message.content)
+    elif hasattr(last_message, "tool_calls") and last_message.tool_calls:
+        print("\n--- AI Requesting Tool ---")
+        print(last_message.tool_calls[0]['args'])
+    else:
+        print("\n--- AI Response ---")
+        print(last_message.content)
+    user_input = input("Is this correct? (y/n/r for yes/no/replan): ")
+    if user_input.lower() == "y":
+        return {"messages": [HumanMessage(content="User approved the step.")]}
+    elif user_input.lower() == "n":
+        return {
+            "messages": [HumanMessage(content="User rejected the step. Halting")]
+            }
+    else:
+        current_replan_count = state.get("replan_count", 0)
+        return {
+            "messages": [HumanMessage(content="User requested a replan.")],
+            "replan_count": current_replan_count + 1
+            }
+    
+
+MAX_REPLANS = 3
 
 
-# --- NEW: Define the Router Function ---
-def should_continue(state: TripState):
-    """
-    Router function to decide the next step.
-
-    Returns:
-        "execute_tools": If the agent should use tools.
-        "continue": If the agent is finished and should continue to the next step.
-    """
+def replan_router(state: TripState):
     last_message = state["messages"][-1]
-    # If the last message has tool calls, we need to execute them
+    if isinstance(last_message, HumanMessage):
+        if "rejected" in last_message.content:
+            return END
+        if "approved" in last_message.content:
+            return "execute_tools"
+        if state.get("replan_count", 0) >= MAX_REPLANS:
+            return END
+        if "replan" in last_message.content:
+            return "replanner"
+    # If the AI has tool calls, ask for feedback. If not, end.
     if hasattr(last_message, "tool_calls") and last_message.tool_calls:
-        return "execute_tools"
-    # Otherwise, we can continue to the next step
-    return "continue"
+        return "human_in_loop"
+    return END
 
 
 # --- 3. Define the Graph ---
 workflow = StateGraph(TripState)
 
-workflow.add_node("flight_researcher", flight_researcher)
-workflow.add_node("hotel_researcher", hotel_researcher)
-workflow.add_node("itinerary_creator", itinerary_creator)
+workflow.add_node("agent", agent_node)
+workflow.add_node("replanner", replanner_node)
+workflow.add_node("human_in_loop", human_in_loop_node)
 workflow.add_node("execute_tools", tool_node)
 
-workflow.set_entry_point("flight_researcher")
-workflow.add_conditional_edges(
-    "flight_researcher", 
-    should_continue,
-    {"continue": "hotel_researcher", "execute_tools": "execute_tools"}
-)
-workflow.add_conditional_edges(
-    "hotel_researcher", 
-    should_continue,
-    {"continue": "itinerary_creator", "execute_tools": "execute_tools"}
-)
-workflow.add_conditional_edges(
-    "itinerary_creator", 
-    should_continue,
-    {"continue": END, "execute_tools": "execute_tools"}
-)
 
-workflow.add_edge("execute_tools", "flight_researcher")
-workflow.add_edge("execute_tools", "hotel_researcher")
-workflow.add_edge("execute_tools", "itinerary_creator")
+workflow.set_entry_point("agent")
+workflow.add_edge("replanner", "agent")
+workflow.add_edge("execute_tools", "agent")
 
+workflow.add_conditional_edges(
+    "agent", 
+    replan_router,
+)
+workflow.add_conditional_edges(
+    "human_in_loop",
+    replan_router,
+)
 
 # Compile the graph
 app = workflow.compile()
 
 # --- 4. Run the Graph ---
-user_input = (
-    "I want to plan a 7-day trip to Seoul, South Korea"
-    " for one person in late October. "
-    "My budget for flights and hotel is $2500."
-)
-
-initial_state = {"messages": [HumanMessage(content=user_input)]}
-
 print("--- Starting Trip Planner ---")
-for event in app.stream(initial_state, stream_mode="values"):
-    # The `stream` method will now yield the state after each node,
-    # including the tool execution steps.
-    last_message = event["messages"][-1]
-    if isinstance(last_message, AIMessage):
-        if last_message.tool_calls:
-            print(f"\n--- AI Requesting Tool: {last_message.tool_calls[0]['name']} ---")
-            print(f"Query: {last_message.tool_calls[0]['args']}")
-        else:
-            print("\n--- AI Responding ---")
-            print(last_message.content)
-    elif isinstance(last_message, ToolMessage):
-        print("\n--- Tool Responding ---")
-        print(f"Tool: {last_message.name}\nOutput: {last_message.content[:200]}...")
+user_input = (
+    "What are latest LLM models released by Google for tool calling this year?"
+)
+initial_state = {
+    "messages": [HumanMessage(content=user_input)],
+    "replan_count": 0
+    }
+# --- 4. Run the Graph ---
+# ... (initial_state definition) ...
+final_state = None
+for event in app.stream(initial_state, {"recursion_limit": 50}):
+    final_state = event
 
-
+print("\n--- FINAL AI RESPONSE ---")
+print(final_state['agent']['messages'][-1].content)
 print("\n--- Trip Planner Complete ---")
