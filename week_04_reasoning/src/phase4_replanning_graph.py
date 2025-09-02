@@ -33,7 +33,7 @@ class TripState(TypedDict):
 search_tool = TavilySearchResults(max_results=2)
 
 # Initialize LLM
-llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0)
+llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", temperature=0)
 
 # llm = ChatOpenAI(
 #     base_url="http://localhost:1234/v1",
