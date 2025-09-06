@@ -1,0 +1,16 @@
+langgraph 
+langchain_core 
+langchain_openai 
+python-dotenv
+langchain-community 
+tavily-python
+langchain-tavily
+langchain_google_genai
+fastapi
+uvicorn
+jinja2
+python-multipart
+crewai==0.35.8
+crewai-tools==0.2.6
+python-dotenv==1.0.1
+langchain-openai==0.1.7
