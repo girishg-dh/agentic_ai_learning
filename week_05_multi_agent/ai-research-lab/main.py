@@ -73,6 +73,32 @@ writer = Agent(
     allow_delegation=False,
 )
 
+analyst = Agent(
+    role='Principal Analyst',
+    goal=("Synthesize research findings into a structured, easy-to-digest report. "
+        "Identify key trends, connections, and actionable insights."),
+        backstory=("You are a seasoned analyst at a top-tier consulting firm, renowned for "
+        "your ability to distill complex information into clear, concise, and "
+        "impactful reports. You excel at seeing the 'story' in the data."),
+        llm=llm,
+    Verbose=True,
+    allow_delegation=False,
+    )
+
+critic = Agent(
+    role='Expert Writing Critic',
+    goal="Provide constructive feedback on the quality of the blog post.",
+    backstory=(
+        "You are a seasoned editor at a prestigious tech journal. Your eye for detail is legendary. "
+        "You are known for your ability to spot logical fallacies, unclear arguments, "
+        "and opportunities to improve clarity and engagement. You provide feedback that is "
+        "firm but fair, always aimed at elevating the quality of the work."
+    ),
+    llm=llm,
+    verbose=True,
+    allow_delegation=False,
+    )
+
 # --- Task Definitions ---
 
 research_task = Task(
@@ -89,15 +115,50 @@ research_task = Task(
     agent=researcher
 )
 
+analyst_task = Task(
+    description=(
+        "Analyze the research findings provided on the top 3 AI trends. "
+        "For each trend, identify the core technology, its potential impact, "
+        "and one key challenge or risk. Your analysis should be structured "
+        "and detailed, providing a solid foundation for a blog post."
+    ),
+    expected_output=(
+        "A detailed report formatted in markdown. It should include an "
+        "introduction, followed by three sections, one for each AI trend. "
+        "Each section must contain the core technology, its potential impact, "
+        "and a key challenge/risk. Conclude with a summary paragraph."
+    ),
+    agent=analyst,
+    context=[research_task]
+)
+
+
 write_task = Task(
     description=(
-        "Using the research findings from the research analyst, write a concise "
+        "Using the detailed analysis from the principal analyst, write a concise "
         "and engaging blog post about the top 3 AI trends in 2026. The post "
         "should be easy for a non-technical audience to understand. Make it "
         "witty and give it a catchy title."
     ),
     expected_output="A 400-word blog post with a title, formatted in markdown.",
-    agent=writer
+    agent=writer,
+    context=[analyst_task]
+)
+
+
+critic_task = Task(
+    description=(
+        "Review the blog post written by the Tech Content Strategist. "
+        "Check for clarity, factual accuracy, engagement, and tone. "
+        "Ensure the post is easily understandable for a non-technical audience. "
+        "Provide a list of 3-5 specific, actionable feedback points for improvement."
+    ),
+    expected_output=(
+        "A bulleted list of 3-5 constructive feedback points, "
+        "explaining what could be improved and why."
+    ),
+    agent=critic,
+    context=[write_task]
 )
 
 # --- Crew Definition ---
@@ -106,12 +167,11 @@ write_task = Task(
 def run_crew():
     """Creates and runs the research crew."""
     research_crew = Crew(
-        agents=[researcher, writer],
-        tasks=[research_task, write_task],
+        agents=[researcher, analyst, writer, critic],
+        tasks=[research_task, analyst_task, write_task, critic_task],
         process=Process.sequential,
         verbose=True,
     )
-    
     result = research_crew.kickoff()
     return result
 
@@ -121,10 +181,8 @@ def run_crew():
 if __name__ == "__main__":
     print("## Welcome to the AI Research Lab Crew")
     print("---------------------------------------")
-    
     final_result = run_crew()
-    
     print("\n\n########################")
     print("## Here is the final result")
     print("########################\n")
-    print(final_result) 
+    print(final_result)
