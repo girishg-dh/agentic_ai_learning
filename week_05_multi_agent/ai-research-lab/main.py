@@ -99,7 +99,29 @@ critic = Agent(
     allow_delegation=False,
     )
 
+
+project_manager = Agent(
+    role="Project Manager",
+    goal=(
+        "Efficiently manage the research project from conception to completion. "
+        "Your primary role is to break down the main goal into smaller, "
+        "manageable tasks and delegate them to the appropriate team members."
+    ),
+    backstory=(
+        "You are a seasoned Project Manager with a knack for understanding complex "
+        "requirements and orchestrating teams to achieve stellar results. You are a "
+        "master of delegation, known for your ability to identify the right person "
+        "for the right job and ensuring seamless collaboration."
+    ),
+    llm=llm,
+    verbose=True,
+    allow_delegation=True,
+)
+
 # --- Task Definitions ---
+
+
+
 
 research_task = Task(
     description=(
@@ -177,18 +199,29 @@ revision_task = Task(
 )
 
 
+manager_task = Task(
+    description=(
+        "Oversee the creation of a comprehensive blog post on the top 3 AI trends for 2026. "
+        "The final output must be a polished, well-researched, and engaging article. "
+        "Your job is to break down this goal and delegate the work to your team of specialists."
+    ),
+    expected_output=(
+        "The final, revised version of the blog post in a 400-word markdown format."
+    ),
+    agent=project_manager
+)
 # --- Crew Definition ---
 
 
 def run_crew():
-    """Creates and runs the research crew."""
-    research_crew = Crew(
-        agents=[researcher, analyst, writer, critic],
-        tasks=[research_task, analyst_task, write_task, critic_task, revision_task],
+    """Creates and runs the managerial crew."""
+    managerial_crew = Crew(
+        agents=[project_manager, researcher, analyst, writer, critic],
+        tasks=[manager_task],
         process=Process.sequential,
         verbose=True,
     )
-    result = research_crew.kickoff()
+    result = managerial_crew.kickoff()
     return result
 
 # --- Main Execution Block ---
