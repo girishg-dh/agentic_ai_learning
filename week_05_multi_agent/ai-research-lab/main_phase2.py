@@ -161,22 +161,6 @@ critic_task = Task(
     context=[write_task]
 )
 
-
-revision_task = Task(
-    description=(
-        "Revise the blog post based on the constructive feedback provided by the Expert Writing Critic. "
-        "Incorporate the suggestions to improve clarity, engagement, and accuracy. "
-        "The final version should be polished and ready for publication."
-    ),
-    expected_output=(
-        "The final, revised version of the blog post in a 400-word markdown format, "
-        "incorporating the critic's feedback."
-    ),
-    agent=writer,
-    context=[write_task, critic_task]
-)
-
-
 # --- Crew Definition ---
 
 
@@ -184,7 +168,7 @@ def run_crew():
     """Creates and runs the research crew."""
     research_crew = Crew(
         agents=[researcher, analyst, writer, critic],
-        tasks=[research_task, analyst_task, write_task, critic_task, revision_task],
+        tasks=[research_task, analyst_task, write_task, critic_task],
         process=Process.sequential,
         verbose=True,
     )
