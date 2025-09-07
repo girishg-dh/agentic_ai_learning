@@ -1,9 +1,10 @@
 import os
 from fastapi import FastAPI, Request, UploadFile, File, Form
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from main import run_research_crew
 import tempfile
+import asyncio
 
 app = FastAPI(
     title="AI Research Assistant API",
@@ -40,8 +41,14 @@ async def handle_chat(
 
     report = run_research_crew(brief=brief, file_path=file_path)
     
-    # Clean up the temp file after the crew has run
-    if file_path and os.path.exists(file_path):
-        os.remove(file_path)
+    async def stream_generator():
+        try:
+            for token in run_research_crew(brief=brief, file_path=file_path):
+                yield {token}
+        finally:
+            print("Stream finished. Cleaning up file.")
+            if file_path and os.path.exists(file_path):
+                os.remove(file_path)
+                print(f"File removed: {file_path}")
 
-    return {"response": report}
+    return StreamingResponse(stream_generator(), media_type="text/event-stream")

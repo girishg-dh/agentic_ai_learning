@@ -25,6 +25,7 @@ def get_llm():
             raise ValueError("GEMINI_API_KEY not found in environment variables")
         return LLM(model="gemini/gemini-2.0-flash-lite", temperature=0.7, api_key=gemini_api_key)
 
+
 def run_research_crew(brief: str, file_path: str = None):
     llm = get_llm()
     search_tool = SerperDevTool()
@@ -82,5 +83,5 @@ def run_research_crew(brief: str, file_path: str = None):
         verbose=True,
     )
     
-    result = research_crew.kickoff()
-    return result.raw if hasattr(result, 'raw') else str(result)
+    for token in research_crew.kickoff():
+        yield token

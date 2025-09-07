@@ -7,7 +7,7 @@
         body { font-family: 'Orbitron', sans-serif; background-color: #0a0a1a; color: #00ff00; max-width: 800px; margin: 0 auto; padding: 20px; }
         h1 { text-align: center; text-shadow: 0 0 10px #00ff00; }
         .chat-container { border: 1px solid #00ff00; box-shadow: 0 0 15px #00ff00 inset; min-height: 400px; padding: 10px; margin-bottom: 20px; background-color: rgba(10, 10, 30, 0.8); overflow-y: auto; }
-        .message { margin: 10px 0; padding: 10px; border-radius: 5px; border: 1px solid; white-space: pre-wrap; }
+        .message { margin: 10px 0; padding: 10px; border-radius: 5px; border: 1px solid; white-space: pre-wrap; word-wrap: break-word; }
         .user { border-color: #00ffff; background-color: #0a1a2a; text-align: left; }
         .assistant { border-color: #ff00ff; background-color: #1a0a1a; }
         .input-form { display: flex; flex-direction: column; gap: 15px; }
@@ -23,7 +23,6 @@
         }
         .form-field input { height: 40px; }
         .form-field textarea { height: 100px; resize: vertical; }
-        /* Style for the file input */
         input[type="file"] {
             background-color: #1a1a2a;
             border: 1px solid #00ff00;
@@ -67,10 +66,6 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
-        .loading {
-            opacity: 0.7;
-            font-style: italic;
-        }
     </style>
 </head>
 <body>
@@ -102,13 +97,11 @@
             const form = e.target;
             const formData = new FormData(form);
 
-            // Basic validation
             if (!formData.get('topic').trim() || !formData.get('scope').trim()) {
                 alert('Please fill out the Topic and Scope fields.');
                 return;
             }
 
-            // Display user brief in the chat
             let userMessageContent = `**Topic:** ${formData.get('topic')}\n**Scope:** ${formData.get('scope')}`;
             if (formData.get('timeline')) {
                 userMessageContent += `\n**Timeline:** ${formData.get('timeline')}`;
@@ -119,23 +112,45 @@
             }
             appendMessage(userMessageContent, 'user');
 
-            const loadingMessage = appendMessage('Briefing my team and starting the research...', 'assistant');
+            const loadingMessage = appendMessage('', 'assistant'); // Start with an empty message
             setFormDisabled(true);
 
             try {
                 const response = await fetch('/chat', {
                     method: 'POST',
-                    body: formData, // Use FormData for file uploads
+                    body: formData,
                 });
+
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-                const htmlResponse = marked.parse(data.response);
-                loadingMessage.innerHTML = `<strong>Assistant:</strong><br>${htmlResponse}`;
-                loadingMessage.classList.remove('loading');
+                
+                // --- NEW STREAMING LOGIC ---
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullResponse = "";
+                
+                // Clear the initial message and prepare for the stream
+                loadingMessage.innerHTML = '<strong>Assistant:</strong><br>';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break; // Exit the loop when the stream is finished
+                    
+                    // Decode the chunk of data and append it to our full response
+                    const chunk = decoder.decode(value, { stream: true });
+                    fullResponse += chunk;
+                    
+                    // Update the UI by parsing the entire accumulated response so far
+                    loadingMessage.innerHTML = `<strong>Assistant:</strong><br>${marked.parse(fullResponse)}`;
+                    
+                    // Keep the chat scrolled to the bottom
+                    const chatContainer = document.getElementById('chatContainer');
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+                // --- END OF STREAMING LOGIC ---
+
             } catch (error) {
                 console.error('Error:', error);
                 loadingMessage.innerHTML = '<strong>Assistant:</strong> Error communicating with the API.';
-                loadingMessage.classList.remove('loading');
             } finally {
                 setFormDisabled(false);
                 form.reset();
@@ -147,14 +162,12 @@
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}`;
 
-            // Use marked.parse for user messages as well to render markdown like bolding
             const formattedContent = marked.parse(content);
 
             if (type === 'user') {
                 messageDiv.innerHTML = `<strong>You:</strong><br>${formattedContent}`;
             } else {
-                messageDiv.innerHTML = `<strong>Assistant:</strong><br>${content}`;
-                messageDiv.classList.add('loading');
+                messageDiv.innerHTML = `<strong>Assistant:</strong><br>${formattedContent}`;
             }
 
             chatContainer.appendChild(messageDiv);
