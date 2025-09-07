@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Research Assistant</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body { font-family: 'Orbitron', sans-serif; background-color: #0a0a1a; color: #00ff00; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; text-shadow: 0 0 10px #00ff00; }
+        .chat-container { border: 1px solid #00ff00; box-shadow: 0 0 15px #00ff00 inset; min-height: 400px; padding: 10px; margin-bottom: 20px; background-color: rgba(10, 10, 30, 0.8); overflow-y: auto; }
+        .message { margin: 10px 0; padding: 10px; border-radius: 5px; border: 1px solid; white-space: pre-wrap; }
+        .user { border-color: #00ffff; background-color: #0a1a2a; text-align: left; }
+        .assistant { border-color: #ff00ff; background-color: #1a0a1a; }
+        .input-form { display: flex; flex-direction: column; gap: 15px; }
+        .form-field { display: flex; flex-direction: column; gap: 5px; }
+        .form-field label { color: #00ff00; font-weight: bold; }
+        .form-field input, .form-field textarea {
+            background-color: #1a1a2a;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: inherit;
+        }
+        .form-field input { height: 40px; }
+        .form-field textarea { height: 100px; resize: vertical; }
+        /* Style for the file input */
+        input[type="file"] {
+            background-color: #1a1a2a;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 8px;
+        }
+        input[type="file"]::file-selector-button {
+            background-color: #2a2a4a;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        input[type="file"]::file-selector-button:hover {
+            background-color: #00ff00;
+            color: #0a0a1a;
+        }
+        .form-field input:focus, .form-field textarea:focus {
+            outline: none;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        button {
+            background-color: #2a2a4a;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        button:hover:not(:disabled) {
+            background-color: #00ff00;
+            color: #0a0a1a;
+            box-shadow: 0 0 15px #00ff00;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .loading {
+            opacity: 0.7;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI Research Assistant</h1>
+    <div class="chat-container" id="chatContainer"></div>
+    <form class="input-form" id="researchForm">
+        <div class="form-field">
+            <label for="topicInput">Research Topic:</label>
+            <input type="text" id="topicInput" name="topic" placeholder="e.g., The Future of Quantum Computing" required>
+        </div>
+        <div class="form-field">
+            <label for="scopeInput">Scope & Key Questions:</label>
+            <textarea id="scopeInput" name="scope" placeholder="e.g., Focus on advancements in quantum algorithms..." required></textarea>
+        </div>
+        <div class="form-field">
+            <label for="timelineInput">Timeline / Deadline (Optional):</label>
+            <input type="text" id="timelineInput" name="timeline" placeholder="e.g., Focus on developments in the next 5 years.">
+        </div>
+        <div class="form-field">
+            <label for="fileInput">Upload a File (Optional):</label>
+            <input type="file" id="fileInput" name="file">
+        </div>
+        <button type="submit" id="sendButton">Generate Report</button>
+    </form>
+
+    <script>
+        document.getElementById('researchForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+
+            // Basic validation
+            if (!formData.get('topic').trim() || !formData.get('scope').trim()) {
+                alert('Please fill out the Topic and Scope fields.');
+                return;
+            }
+
+            // Display user brief in the chat
+            let userMessageContent = `**Topic:** ${formData.get('topic')}\n**Scope:** ${formData.get('scope')}`;
+            if (formData.get('timeline')) {
+                userMessageContent += `\n**Timeline:** ${formData.get('timeline')}`;
+            }
+            const file = formData.get('file');
+            if (file && file.name) {
+                userMessageContent += `\n**File:** ${file.name}`;
+            }
+            appendMessage(userMessageContent, 'user');
+
+            const loadingMessage = appendMessage('Briefing my team and starting the research...', 'assistant');
+            setFormDisabled(true);
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    body: formData, // Use FormData for file uploads
+                });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                const htmlResponse = marked.parse(data.response);
+                loadingMessage.innerHTML = `<strong>Assistant:</strong><br>${htmlResponse}`;
+                loadingMessage.classList.remove('loading');
+            } catch (error) {
+                console.error('Error:', error);
+                loadingMessage.innerHTML = '<strong>Assistant:</strong> Error communicating with the API.';
+                loadingMessage.classList.remove('loading');
+            } finally {
+                setFormDisabled(false);
+                form.reset();
+            }
+        });
+
+        function appendMessage(content, type) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            // Use marked.parse for user messages as well to render markdown like bolding
+            const formattedContent = marked.parse(content);
+
+            if (type === 'user') {
+                messageDiv.innerHTML = `<strong>You:</strong><br>${formattedContent}`;
+            } else {
+                messageDiv.innerHTML = `<strong>Assistant:</strong><br>${content}`;
+                messageDiv.classList.add('loading');
+            }
+
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return messageDiv;
+        }
+
+        function setFormDisabled(disabled) {
+            const inputs = document.querySelectorAll('#researchForm input, #researchForm textarea, #researchForm button');
+            inputs.forEach(input => {
+                input.disabled = disabled;
+            });
+
+            const button = document.getElementById('sendButton');
+            if (disabled) {
+                button.textContent = 'Generating...';
+            } else {
+                button.textContent = 'Generate Report';
+            }
+        }
+    </script>
+</body>
+</html>

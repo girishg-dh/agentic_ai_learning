@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: research-assistant-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: research-assistant
+  template:
+    metadata:
+      labels:
+        app: research-assistant
+    spec:
+      containers:
+      - name: research-assistant-container
+        image: ai-research-assistant
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: research-assistant-config
+        ports:
+        - containerPort: 8000
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"

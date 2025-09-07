@@ -58,3 +58,4 @@ models/
 logs/
 *.log
 .cache/
+ai_research_lab/configmap.yaml
