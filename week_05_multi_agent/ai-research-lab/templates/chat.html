@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Research Assistant</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body { font-family: 'Orbitron', sans-serif; background-color: #0a0a1a; color: #00ff00; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; text-shadow: 0 0 10px #00ff00; }
+        .chat-container { border: 1px solid #00ff00; box-shadow: 0 0 15px #00ff00 inset; min-height: 400px; padding: 10px; margin-bottom: 20px; background-color: rgba(10, 10, 30, 0.8); overflow-y: auto; }
+        .message { margin: 10px 0; padding: 10px; border-radius: 5px; border: 1px solid; white-space: pre-wrap; }
+        .user { border-color: #00ffff; background-color: #0a1a2a; text-align: left; }
+        .assistant { border-color: #ff00ff; background-color: #1a0a1a; }
+        .input-form { display: flex; flex-direction: column; gap: 15px; }
+        .form-field { display: flex; flex-direction: column; gap: 5px; }
+        .form-field label { color: #00ff00; font-weight: bold; }
+        .form-field input, .form-field textarea { 
+            background-color: #1a1a2a; 
+            border: 1px solid #00ff00; 
+            color: #00ff00; 
+            padding: 10px; 
+            border-radius: 5px; 
+            font-family: inherit;
+        }
+        .form-field input { height: 40px; }
+        .form-field textarea { height: 100px; resize: vertical; }
+        .form-field input:focus, .form-field textarea:focus { 
+            outline: none; 
+            box-shadow: 0 0 10px #00ff00; 
+        }
+        button { 
+            background-color: #2a2a4a; 
+            border: 2px solid #00ff00; 
+            color: #00ff00; 
+            padding: 12px 20px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-family: inherit; 
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        button:hover:not(:disabled) { 
+            background-color: #00ff00; 
+            color: #0a0a1a; 
+            box-shadow: 0 0 15px #00ff00; 
+        }
+        button:disabled { 
+            opacity: 0.5; 
+            cursor: not-allowed; 
+        }
+        .loading { 
+            opacity: 0.7; 
+            font-style: italic; 
+        }
+    </style>
+</head>
+<body>
+    <h1>AI Research Assistant</h1>
+    <div class="chat-container" id="chatContainer"></div>
+    <form class="input-form" id="researchForm">
+        <div class="form-field">
+            <label for="topicInput">Research Topic:</label>
+            <input type="text" id="topicInput" placeholder="e.g., The Future of Quantum Computing" required>
+        </div>
+        <div class="form-field">
+            <label for="scopeInput">Scope & Key Questions:</label>
+            <textarea id="scopeInput" placeholder="e.g., Focus on advancements in quantum algorithms..." required></textarea>
+        </div>
+        <div class="form-field">
+            <label for="timelineInput">Timeline / Deadline (Optional):</label>
+            <input type="text" id="timelineInput" placeholder="e.g., Focus on developments expected in the next 5 years.">
+        </div>
+        <button type="submit" id="sendButton">Generate Report</button>
+    </form>
+    
+    <script>
+        document.getElementById('researchForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const topic = document.getElementById('topicInput').value.trim();
+            const scope = document.getElementById('scopeInput').value.trim();
+            const timeline = document.getElementById('timelineInput').value.trim();
+
+            if (!topic || !scope) return;
+            
+            let userMessageContent = `**Topic:** ${topic}\n**Scope:** ${scope}`;
+            if (timeline) {
+                userMessageContent += `\n**Timeline:** ${timeline}`;
+            }
+
+            appendMessage(userMessageContent, 'user');
+            const loadingMessage = appendMessage('Briefing my team and starting the research...', 'assistant');
+            setFormDisabled(true);
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: userMessageContent }),
+                });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+
+                // Convert the markdown response to HTML using marked.js
+                const htmlResponse = marked.parse(data.response);
+                loadingMessage.innerHTML = `<strong>Assistant:</strong><br>${htmlResponse}`;
+                loadingMessage.classList.remove('loading');
+
+            } catch (error) {
+                console.error('Error:', error);
+                loadingMessage.innerHTML = '<strong>Assistant:</strong> Error communicating with the API.';
+                loadingMessage.classList.remove('loading');
+            } finally {
+                setFormDisabled(false);
+                document.getElementById('researchForm').reset();
+            }
+        });
+
+        function appendMessage(content, type) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            if (type === 'user') {
+                messageDiv.innerHTML = `<strong>You:</strong><br>${content}`;
+            } else {
+                messageDiv.innerHTML = `<strong>Assistant:</strong><br>${content}`;
+                messageDiv.classList.add('loading');
+            }
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return messageDiv;
+        }
+
+        function setFormDisabled(disabled) {
+            const inputs = document.querySelectorAll('#researchForm input, #researchForm textarea, #researchForm button');
+            inputs.forEach(input => {
+                input.disabled = disabled;
+            });
+            
+            const button = document.getElementById('sendButton');
+            if (disabled) {
+                button.textContent = 'Generating...';
+            } else {
+                button.textContent = 'Generate Report';
+            }
+        }
+    </script>
+</body>
+</html>
