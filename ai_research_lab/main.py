@@ -4,6 +4,10 @@ from crewai import LLM, Agent, Crew, Process, Task
 from crewai_tools import FileReadTool, SerperDevTool
 from dotenv import load_dotenv
 
+from guards.output_rail import output_guard
+from langchain_core.pydantic_v1 import BaseModel, Field
+
+
 load_dotenv()
 
 
@@ -83,5 +87,21 @@ def run_research_crew(brief: str, file_path: str = None):
         verbose=True,
     )
     
-    for token in research_crew.kickoff():
-        yield token
+    print("Kicking off the research crew...")
+    raw_result = research_crew.kickoff()
+    
+    print("\nCrew finished. Validating final output...")
+    try:
+        # The guard no longer needs the LLM, so we use the simpler .parse() method
+        validated_result = output_guard.parse(raw_result)
+        
+        print("Output validation successful.")
+        # The validated_result is the original string if validation passes
+        return validated_result
+
+    except Exception as e:
+        print(f"Output validation failed: {e}")
+        # Fallback in case of validation failure
+        return "The research crew finished, but the final report failed validation and could not be returned."
+
+

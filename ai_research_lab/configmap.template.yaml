@@ -1,0 +1,17 @@
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: research-assistant-config
+data:
+
+  LLM_PROVIDER: "lmstudio"
+  LMSTUDIO_MODEL: "your-local-model-name"
+  LANGCHAIN_PROJECT: "AI Research Assistant"
+  LANGCHAIN_ENDPOINT: "https://api.smith.langchain.com"
+  
+  # --- Placeholders for Secrets ---
+  SERPER_API_KEY: "__SERPER_API_KEY__"
+  LMSTUDIO_BASE_URL: "__LMSTUDIO_BASE_URL__"
+  LANGCHAIN_API_KEY: "__LANGCHAIN_API_KEY__"
+  LANGCHAIN_TRACING_V2: "true"

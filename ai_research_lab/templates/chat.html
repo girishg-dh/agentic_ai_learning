@@ -123,30 +123,13 @@
 
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 
-                // --- NEW STREAMING LOGIC ---
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let fullResponse = "";
+                // Handle the response as text
+                const result = await response.text();
+                loadingMessage.innerHTML = `<strong>Assistant:</strong><br>${marked.parse(result)}`;
                 
-                // Clear the initial message and prepare for the stream
-                loadingMessage.innerHTML = '<strong>Assistant:</strong><br>';
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break; // Exit the loop when the stream is finished
-                    
-                    // Decode the chunk of data and append it to our full response
-                    const chunk = decoder.decode(value, { stream: true });
-                    fullResponse += chunk;
-                    
-                    // Update the UI by parsing the entire accumulated response so far
-                    loadingMessage.innerHTML = `<strong>Assistant:</strong><br>${marked.parse(fullResponse)}`;
-                    
-                    // Keep the chat scrolled to the bottom
-                    const chatContainer = document.getElementById('chatContainer');
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                }
-                // --- END OF STREAMING LOGIC ---
+                // Keep the chat scrolled to the bottom
+                const chatContainer = document.getElementById('chatContainer');
+                chatContainer.scrollTop = chatContainer.scrollHeight;
 
             } catch (error) {
                 console.error('Error:', error);
