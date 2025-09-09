@@ -4,7 +4,7 @@ from crewai import LLM, Agent, Crew, Process, Task
 from crewai_tools import FileReadTool, SerperDevTool
 from dotenv import load_dotenv
 
-from guards.output_rail import output_guard
+#from guards.output_rail import output_guard
 from langchain_core.pydantic_v1 import BaseModel, Field
 
 
@@ -57,6 +57,13 @@ def run_research_crew(brief: str, file_path: str = None):
         llm=llm,
         verbose=True
     )
+    evaluator = Agent(
+        role='Quality Assurance and Evaluation Expert',
+        goal='To objectively evaluate the quality of a research report based on a set of predefined criteria: Relevance, Clarity, Factual Consistency, and Actionability. You must provide a numeric score (1-10) for each criterion and a brief justification for your scores. The final output must be a single JSON object.',
+        backstory="You are a meticulous and impartial evaluator, known for your brutally honest and constructive feedback. You follow instructions to the letter and your judgment is trusted by all. You never get sidetracked and focus solely on the evaluation task.",
+        llm=llm,
+        verbose=True
+    )
 
     research_task_description = (f"Conduct thorough research based on the following brief: \n\nBRIEF:\n{brief}")
     if file_path:
@@ -79,29 +86,34 @@ def run_research_crew(brief: str, file_path: str = None):
         agent=writer,
         context=[analysis_task]
     )
+    evaluation_task = Task(
+        description=("Evaluate the quality of the research report provided in the context. "
+            "You must base your evaluation on the original user brief provided below, ensuring the report addresses all its points.\n\n"
+            "ORIGINAL USER BRIEF:\n"
+            f"--- BRIEF START ---\n{brief}\n--- BRIEF END ---\n\n"
+            "Your final output must be a single JSON object with a key for each of our four criteria: "
+            "'relevance', 'clarity', 'factual_consistency', and 'actionability'. "
+            "Each key should have a nested object with 'score' (1-10) and 'justification' (a brief explanation)."
+        ),
+        expected_output="A single, valid JSON object containing the scores and justifications for the four evaluation criteria.",
+        agent=evaluator,
+        context=[writing_task]
+    )
 
     research_crew = Crew(
-        agents=[researcher, analyst, writer],
-        tasks=[research_task, analysis_task, writing_task],
+        agents=[researcher, analyst, writer, evaluator],
+        tasks=[research_task, analysis_task, writing_task, evaluation_task],
         process=Process.sequential,
         verbose=True,
     )
     
-    print("Kicking off the research crew...")
-    raw_result = research_crew.kickoff()
+    # --- KICKOFF AND RETURN EVALUATION ---
+    print("Kicking off the research crew with evaluation...")
+    final_result = research_crew.kickoff()
     
-    print("\nCrew finished. Validating final output...")
-    try:
-        # The guard no longer needs the LLM, so we use the simpler .parse() method
-        validated_result = output_guard.parse(raw_result)
-        
-        print("Output validation successful.")
-        # The validated_result is the original string if validation passes
-        return validated_result
-
-    except Exception as e:
-        print(f"Output validation failed: {e}")
-        # Fallback in case of validation failure
-        return "The research crew finished, but the final report failed validation and could not be returned."
+    print("\nCrew finished. Final evaluation:")
+    print(final_result)
+    
+    return final_result
 
 
