@@ -1,0 +1,11 @@
+crewai 
+crewai[tools]
+uvicorn[standard]
+fastapi
+python-dotenv
+langchain-google-genai
+langchain
+langsmith
+langchain-community
+langchain-openai
+langchain-community
