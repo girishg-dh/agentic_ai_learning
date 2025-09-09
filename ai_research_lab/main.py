@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 #from guards.output_rail import output_guard
 from langchain_core.pydantic_v1 import BaseModel, Field
 
-
 load_dotenv()
 
 
@@ -108,12 +107,42 @@ def run_research_crew(brief: str, file_path: str = None):
     )
     
     # --- KICKOFF AND RETURN EVALUATION ---
-    print("Kicking off the research crew with evaluation...")
-    final_result = research_crew.kickoff()
-    
-    print("\nCrew finished. Final evaluation:")
-    print(final_result)
-    
-    return final_result
+    try:
+        print("Attempting to run the primary research crew...")
+        final_result = research_crew.kickoff()
+        print("\nPrimary crew finished successfully. Final evaluation:")
+        print(final_result)
+        return final_result
 
+    except Exception as e:
+        print("--- PRIMARY CREW FAILED ---")
+        print(f"Error: {e}")
+        print("--- EXECUTING FALLBACK ---")
+
+        # Define a simple fallback agent
+        fallback_agent = Agent(
+            role='Contingency Response Specialist',
+            goal='To provide a direct, concise, and helpful answer when the primary research system fails. State that the advanced system is unavailable and provide a best-effort response based on your general knowledge.',
+            backstory='You are a reliable backup system, activated only in emergencies. Your priority is to ensure the user never receives a hard error, providing a helpful and direct answer instead.',
+            llm=llm,
+            verbose=True
+        )
+
+        # Define a simple fallback task
+        fallback_task = Task(
+            description=f"The user's original request was: '{brief}'. The advanced research system failed to process this request. Provide a direct, knowledge-based answer to the user's topic. Apologize for the inconvenience and state that this is a simplified response.",
+            expected_output="A short, helpful paragraph directly answering the user's question.",
+            agent=fallback_agent
+        )
+
+        # Define and kick off the fallback crew
+        fallback_crew = Crew(
+            agents=[fallback_agent],
+            tasks=[fallback_task],
+            process=Process.sequential,
+            verbose=True
+        )
+        
+        fallback_result = fallback_crew.kickoff()
+        return fallback_result
 

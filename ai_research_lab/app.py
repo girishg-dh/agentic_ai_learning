@@ -1,12 +1,14 @@
+import asyncio
 import os
-from fastapi import FastAPI, Request, UploadFile, File, Form, HTTPException
+import tempfile
+
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from main import run_research_crew
-import tempfile
-import asyncio
-from guards.input_rails import input_gaurd
-from guardrails.errors import ValidationError
+
+# from guards.input_rails import input_gaurd
+# from guardrails.errors import ValidationError
 
 app = FastAPI(
     title="AI Research Assistant API",
@@ -29,11 +31,11 @@ async def handle_chat(
     timeline: str = Form(None),
     file: UploadFile = File(None)
 ):
-    try:
-        input_gaurd.parse(topic)
-        print("Input validation successful")
-    except ValidationError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid topic provided: {e}")
+    # try:
+    #     input_gaurd.parse(topic)
+    #     print("Input validation successful")
+    # except ValidationError as e:
+    #     raise HTTPException(status_code=400, detail=f"Invalid topic provided: {e}")
     
     
     brief = f"**Topic:** {topic}\n**Scope:** {scope}"
