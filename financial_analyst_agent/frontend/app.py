@@ -127,7 +127,7 @@ def call_analysis_api(company_name: str):
     """
     Calls the backend API to perform financial analysis.
     """
-    api_url = "http://127.0.0.1:8000/analyze"
+    api_url = "https://financial-agent-backend.onrender.com/analyze""
     payload = {"company": company_name}
     
     try:
