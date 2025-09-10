@@ -8,8 +8,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from .agents import analyst, researcher
-from .tasks import analysis_task, research_task
+from agents import analyst, researcher
+from tasks import analysis_task, research_task
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
