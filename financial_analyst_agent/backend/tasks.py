@@ -1,6 +1,7 @@
 # backend/tasks.py
 from crewai import Task
-from .agents import researcher, analyst # Use relative import
+
+from agents import analyst, researcher
 
 # Task 1: Research
 research_task = Task(

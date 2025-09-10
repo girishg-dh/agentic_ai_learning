@@ -59,3 +59,6 @@ logs/
 *.log
 .cache/
 ai_research_lab/configmap.yaml
+financial_analyst_agent/db/chroma.sqlite3
+financial_analyst_agent/backend/db/chroma.sqlite3
+financial_analyst_agent/crewai-rag-tool.lock
