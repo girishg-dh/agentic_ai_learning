@@ -1,7 +1,7 @@
 # backend/agents.py
 from crewai import Agent
 from crewai_tools import ScrapeWebsiteTool, SerperDevTool
-from llm import get_llm
+from .llm import get_llm
 
 search_tool = SerperDevTool()
 scrape_tool = ScrapeWebsiteTool()

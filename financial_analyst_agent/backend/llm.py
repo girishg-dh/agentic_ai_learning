@@ -5,7 +5,7 @@ import os
 from crewai import LLM
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 
 def get_llm():
@@ -18,8 +18,7 @@ def get_llm():
         return Ollama(model=os.getenv("OLLAMA_MODEL"), base_url=os.getenv("OLLAMA_BASE_URL"))
     elif llm_provider == "lmstudio":
         print("Using LM Studio model")
-        from langchain_openai import ChatOpenAI
-        return ChatOpenAI(model=os.getenv("LMSTUDIO_MODEL"), base_url=os.getenv("LMSTUDIO_BASE_URL"), api_key="lm-studio")
+        return LLM(model=os.getenv("LMSTUDIO_MODEL"), base_url=os.getenv("LMSTUDIO_BASE_URL"), api_key=os.getenv("LMSTUDIO_API_KEY"))
     else:
         print("Using Gemini model")
         gemini_api_key = os.getenv("GEMINI_API_KEY")

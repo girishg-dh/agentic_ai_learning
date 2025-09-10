@@ -1,0 +1,6 @@
+crewai
+crewai-tools
+python-dotenv
+fastapi
+pydantic
+langchain-community
