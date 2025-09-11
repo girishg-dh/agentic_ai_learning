@@ -94,51 +94,62 @@ def main():
 
     collection = client.create_collection(name=COLLECTION_NAME)
 
+    # --- Consolidate all metrics from all files ---
+    all_metrics = []
     json_files = [f for f in os.listdir(DATA_DIR) if f.endswith('.json')]
-    documents, metadatas, ids = [], [], []
-    new_descriptions_added = 0
-
-    print(f"Found {len(json_files)} JSON files to process.")
-    for filename in tqdm(json_files, desc="Processing & Enhancing JSON files"):
+    print(f"Found {len(json_files)} JSON files. Consolidating metrics...")
+    for filename in json_files:
         file_path = os.path.join(DATA_DIR, filename)
         try:
             with open(file_path, 'r') as f:
                 data = json.load(f)
-            counter = 0
-
             if 'data' in data and 'metrics' in data['data']:
-                for metric in data['data']['metrics']:
-                    metric_id = metric.get('id')
-                    if not metric_id: continue
-
-                    # --- ENHANCEMENT STEP ---
-                    if metric_id in description_cache:
-                        # TODO: Post description generation the description should persisted in Cache
-                        # in batches of 10
-                        improved_description = description_cache[metric_id]
-                    else:
-                        # 1. Generate a new, better description
-                        improved_description = generate_improved_description(metric)
-                        description_cache[metric_id] = improved_description
-                        new_descriptions_added += 1
-
-                    # 2. Replace the old description with the new one
-                    metric['description'] = improved_description
-
-                    text_representation = process_json_to_text(metric)
-                    documents.append(text_representation)
-                    metadatas.append({'original_json': json.dumps(metric)})
-                    ids.append(metric_id)
-                    counter += 1
-                if counter > 0:
-                    print(f"  - Enhanced and added {counter} metrics from {filename}")
-
+                all_metrics.extend(data['data']['metrics'])
         except Exception as e:
-            print(f"An error occurred with {filename}: {e}")
+            print(f"An error occurred while reading {filename}: {e}")
 
-    # --- Save description cache ---
-    if new_descriptions_added > 0:
-        print(f"\nSaving {new_descriptions_added} new enhanced descriptions to cache...")
+    if not all_metrics:
+        print("No metrics found to process.")
+        return
+
+    print(f"Found a total of {len(all_metrics)} metrics to process.")
+
+    documents, metadatas, ids = [], [], []
+    new_descriptions_since_last_save = 0
+
+    # --- Process all metrics with a single progress bar ---
+    for metric in tqdm(all_metrics, desc="Processing & Enhancing Metrics"):
+        metric_id = metric.get('id')
+        if not metric_id: continue
+
+        # --- ENHANCEMENT STEP ---
+        if metric_id in description_cache:
+            improved_description = description_cache[metric_id]
+        else:
+            # 1. Generate a new, better description
+            improved_description = generate_improved_description(metric)
+            description_cache[metric_id] = improved_description
+            new_descriptions_since_last_save += 1
+
+            # 2. Persist cache in batches
+            if new_descriptions_since_last_save >= 10:
+                # Use tqdm.write to avoid breaking the progress bar
+                tqdm.write(f"\nSaving cache to disk ({len(description_cache)} items)...")
+                with open(ENHANCED_DESCRIPTIONS_CACHE, 'w') as f:
+                    json.dump(description_cache, f, indent=2)
+                new_descriptions_since_last_save = 0
+
+        # 3. Replace the old description with the new one
+        metric['description'] = improved_description
+
+        text_representation = process_json_to_text(metric)
+        documents.append(text_representation)
+        metadatas.append({'original_json': json.dumps(metric)})
+        ids.append(metric_id)
+
+    # --- Final cache save ---
+    if new_descriptions_since_last_save > 0:
+        print(f"\nSaving final cache changes to disk ({len(description_cache)} items)...")
         with open(ENHANCED_DESCRIPTIONS_CACHE, 'w') as f:
             json.dump(description_cache, f, indent=2)
 
@@ -149,6 +160,7 @@ def main():
         print("✅ Enhanced knowledge base created successfully!")
     else:
         print("No documents were processed.")
+
 
 
 if __name__ == "__main__":
