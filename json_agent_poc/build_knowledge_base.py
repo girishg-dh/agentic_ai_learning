@@ -48,7 +48,7 @@ Improved Description:
             model=MODEL_NAME_LLM,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
-            max_tokens=100
+            max_tokens=500
         )
         new_description = response.choices[0].message.content.strip()
         return new_description
